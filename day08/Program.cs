@@ -92,11 +92,5 @@
             return (loc.Row == 0 || loc.Row == rows - 1
                 || loc.Col == 0 || loc.Col == cols - 1);
         }
-
-        public static void ForEach<T>(this IEnumerable<T> source, Action<T> action)
-        {
-            foreach (var item in source)
-                action(item);
-        }
     }
 }
