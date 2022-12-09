@@ -1,111 +1,96 @@
 ﻿namespace Day08
 {
-    public class Tree
-    {
-        public readonly int Height;
-        public bool Visible = false;
+    using TreeType = IEnumerable<IEnumerable<Tree>>;
 
-        public Tree(int height)
-        {
-            Height = height;
-        }
+    public record Tree(int Height);
+
+    public record Location(int Row, int Col);
+
+    public enum Direction
+    {
+        UP,
+        DOWN,
+        LEFT,
+        RIGHT
     }
 
     public static class Program
     {
+        public static Dictionary<Direction, Func<Location, Location>> Advancers = new ()
+        {
+            {Direction.UP, (Location loc) => {return loc with {Row = loc.Row - 1};}},
+            {Direction.DOWN, (Location loc) => {return loc with {Row = loc.Row + 1};}},
+            {Direction.LEFT, (Location loc) => {return loc with {Col = loc.Col - 1};}},
+            {Direction.RIGHT, (Location loc) => {return loc with {Col = loc.Col + 1};}},
+        };
+
         public static void Main()
         {
             var input = File.ReadAllLines("input.txt");
-            var trees = input.Select(row => row.Select(tree => new Tree((int)(tree - '0'))).ToList()).ToList();
+            var trees = input.Select(row => row.Select(tree => new Tree((int)(tree - '0'))));
 
-            // Trees on the edge are visible
-            trees.First().ForEach(tree => tree.Visible = true);
-            trees.Last().ForEach(tree => tree.Visible = true);
-            trees.ForEach(row => row.First().Visible = true);
-            trees.ForEach(row => row.Last().Visible = true);
-
-
-            var result = trees.Sum(row => row.Count(tree => tree.Visible));
-
-            // Top down
-            for (int col = 1; col < trees.First().Count() - 1; col ++)
-            {
-                int max = trees.First().ElementAt(col).Height;
-
-                foreach (var row in trees.Skip(1).SkipLast(1))
-                {
-                    var tree = row.ElementAt(col);
-
-                    if (tree.Height > max)
-                    {
-                        tree.Visible = true;
-                        max = tree.Height;
-                    }
-
-                    if (max == 9) break;
-                }
-            }
-
-            // Bottom up
-            for (int col = 1; col < trees.First().Count() - 1; col ++)
-            {
-                int max = trees.Last().ElementAt(col).Height;
-
-                foreach (var row in trees.Skip(1).SkipLast(1).Reverse())
-                {
-                    var tree = row.ElementAt(col);
-
-                    if (tree.Height > max)
-                    {
-                        tree.Visible = true;
-                        max = tree.Height;
-                    }
-
-                    if (max == 9) break;
-                }
-            }
-
-            // Left to Right
-            foreach (var row in trees.Skip(1).SkipLast(1))
-            {
-                int max = row.First().Height;
-
-                foreach (var tree in row)
-                {
-                    if (tree.Height > max)
-                    {
-                        tree.Visible = true;
-                        max = tree.Height;
-                    }
-
-                    if (max == 9) break;
-                }
-            }
-
-            // Right to left
-            foreach (var row in trees.Skip(1).SkipLast(1))
-            {
-                int max = row.Last().Height;
-
-                foreach (var tree in row.AsEnumerable().Reverse())
-                {
-                    if (tree.Height > max)
-                    {
-                        tree.Visible = true;
-                        max = tree.Height;
-                    }
-
-                    if (max == 9) break;
-                }
-            }
-
-            result = trees.Sum(row => row.Count(tree => tree.Visible));
-
+            var indexed = trees.SelectMany((row, row_idx) =>
+                row.Select((tree, col_idx) =>
+                    new { Loc = new Location(row_idx, col_idx)})).ToList();
+            
+            var visible = indexed.Count(l => trees.IsVisible(l.Loc, out int _));
+            var highest = indexed.Select(l => {trees.IsVisible(l.Loc, out int score); return score;}).Max();
         }
 
-        public static Tree At(this IEnumerable<IEnumerable<Tree>> trees, int row, int col)
+        public static bool IsVisible(this TreeType trees, Location loc, out int score)
         {
-            return trees.ElementAt(row).ElementAt(col);
+            var ret = trees.IsVisibleFrom(loc, Direction.UP, out int up);
+            ret |= trees.IsVisibleFrom(loc, Direction.DOWN, out int down);
+            ret |= trees.IsVisibleFrom(loc, Direction.LEFT, out int left);
+            ret |= trees.IsVisibleFrom(loc, Direction.RIGHT, out int right);
+
+            score = up * down * left * right;
+
+            return ret;
+        }
+
+        public static bool IsVisibleFrom(this TreeType trees, Location loc, Direction dir, out int score)
+        {
+            score = 0;
+            var current = loc;
+            var me = trees.At(loc).Height;
+            bool ret = true;
+
+            while (trees.Advance(ref current, dir))
+            {
+                var other = trees.At(current).Height;
+                score ++;
+
+                if (other >= me)
+                {
+                    ret = false;
+                    break;
+                }
+            }
+
+            return ret;
+        }
+
+        public static bool Advance(this TreeType tree, ref Location loc, Direction dir)
+        {
+            if (tree.OnEdge(loc)) return false;
+            
+            loc = Advancers[dir](loc);
+            return true;
+        }
+
+        public static Tree At(this TreeType trees, Location loc)
+        {
+            return trees.ElementAt(loc.Row).ElementAt(loc.Col);
+        }
+
+        public static bool OnEdge(this TreeType trees, Location loc)
+        {
+            var rows = trees.Count();
+            var cols = trees.First().Count();
+
+            return (loc.Row == 0 || loc.Row == rows - 1
+                || loc.Col == 0 || loc.Col == cols - 1);
         }
 
         public static void ForEach<T>(this IEnumerable<T> source, Action<T> action)
