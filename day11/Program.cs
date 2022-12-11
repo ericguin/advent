@@ -17,6 +17,13 @@ namespace Day11
     {
         public static readonly Regex gigareg = new Regex(@"Monkey (?<monkey>[^:]+):\s+Starting items: (?<starting>[^\n]+)\s+Operation: new = old (?<op>[^\n]+)\s+Test: divisible by (?<div>[\d]+)\s+If true: throw to monkey (?<tmonk>[\d]+)\s+If false: throw to monkey (?<fmonk>[\d]+)", RegexOptions.Compiled);
 
+        public static readonly List<ulong> poulongs = new ()
+        {
+            1, 20, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000
+        };
+
+        public static ulong ThatsAHugeBitch = 0;
+
         public static readonly Dictionary<Operation, Func<BigInteger, BigInteger, BigInteger>> Operations = new ()
         {
             {Operation.MULT, (x, y) => x * y},
@@ -24,18 +31,13 @@ namespace Day11
             {Operation.SQUARE, (x, _) => x * x},
         };
 
-        public static readonly List<ulong> poulongs = new ()
-        {
-            1, 20, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000
-        };
-
         public static void Main()
         {
-            var input = File.ReadAllText("example.txt");
+            var input = File.ReadAllText("input.txt");
             var monkeys = gigareg.Matches(input).Select(m => (m.Parse(), (ulong)0)).ToList();
+            ThatsAHugeBitch = monkeys.Select(m => m.Item1.test).Aggregate((x, y) => x * y);
 
             var count = 10000;
-            //var count = 20;
 
             foreach (var round in Enumerable.Range(1, count))
             {
@@ -95,7 +97,7 @@ namespace Day11
 
         public static BigInteger InspectItem(this Monkey m, BigInteger item, bool divide = true)
         {
-            var inspect = Operations[m.op](item, m.op_mag);
+            var inspect = Operations[m.op](item, m.op_mag) % ThatsAHugeBitch;
             return divide ? inspect / 3 : inspect;
         }
 
