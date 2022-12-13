@@ -32,14 +32,12 @@ namespace Day12
         public static void Main()
         {
             var input = File.ReadAllLines("input.txt");
-            var start = new Position(0, 0);
             var end = new Position(0, 0);
             var map = input.Select((l, y) => l.Select((c, x) =>
             {
                 int ret = c - 'a';
                 if (c == 'S')
                 {
-                    start = new Position(x, y);
                     ret = -1;
                 }
                 if (c == 'E')
@@ -50,45 +48,61 @@ namespace Day12
                 return ret;
             } ).ToArray()).ToArray();
 
-            List<List<Position>> InFlight = new List<List<Position>>()
-            {
-                new (){start}
-            };
+            object answerLock = new object();
+            List<int> answers = new List<int>();
 
-            bool found = false;
-            // Let's try to avoid recursion?
-            while (!found)
+            Parallel.ForEach(map.SelectMany((r, y) => r.Select((i, x) => new {Height = i, Pos = new Position(x, y)}).Where(i => i.Height <= 0)), (start) =>
             {
-                List<List<Position>> iter = new List<List<Position>>();
-                bool moves = false;
-
-                foreach (var path in InFlight)
+                List<List<Position>> InFlight = new List<List<Position>>()
                 {
-                    // Grab the valid moves from here
-                    var valid = map.ValidMovesFrom(path.Last());
-                    valid.RemoveAll(v => path.Contains(v));
+                    new (){start.Pos}
+                };
 
-                    if (valid.Any()) moves = true;
+                bool found = false;
+                // Let's try to avoid recursion?
+                while (!found)
+                {
+                    List<List<Position>> iter = new List<List<Position>>();
+                    bool moves = false;
 
-                    var paths = valid.Select(v => path.AsEnumerable().Append(v).ToList()).ToList();
-
-                    if (valid.Any(v => v == end))
+                    foreach (var path in InFlight)
                     {
-                        found = true;
+                        // Grab the valid moves from here
+                        var valid = map.ValidMovesFrom(path.Last());
+                        valid.RemoveAll(v => path.Contains(v));
+
+                        if (valid.Any()) moves = true;
+
+                        var paths = valid.Select(v => path.AsEnumerable().Append(v).ToList()).ToList();
+
+                        if (valid.Any(v => v == end))
+                        {
+                            found = true;
+                        }
+
+                        iter.AddRange(paths);
                     }
 
-                    iter.AddRange(paths);
+                    iter = iter.Distinct(new PathCompare()).ToList();
+
+                    InFlight = iter;
+
+                    if (!moves) break;
                 }
 
-                iter = iter.Distinct(new PathCompare()).ToList();
-
-                InFlight = iter;
-
-                if (!moves) break;
-            }
-
-            // -1 for starting position, doesn't count as a move
-            int answer = InFlight.First().Count() - 1;
+                if (found)
+                {
+                    // -1 for starting position, doesn't count as a move
+                    int answer = InFlight.First().Count() - 1;
+                    Console.WriteLine($"Answer is {answer}");
+                    lock(answerLock)
+                    {
+                        answers.Add(answer);
+                    }
+                }
+            });
+        
+            var answer2 = answers.OrderBy(a => a).First();
         }
 
         public static List<Position> ValidMovesFrom(this int[][] map, Position p)
