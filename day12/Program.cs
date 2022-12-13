@@ -58,6 +58,11 @@ namespace Day12
                     new (){start.Pos}
                 };
 
+                List<Position> HasBeen = new List<Position>()
+                {
+                    start.Pos
+                };
+
                 bool found = false;
                 // Let's try to avoid recursion?
                 while (!found)
@@ -70,6 +75,7 @@ namespace Day12
                         // Grab the valid moves from here
                         var valid = map.ValidMovesFrom(path.Last());
                         valid.RemoveAll(v => path.Contains(v));
+                        valid.RemoveAll(v => HasBeen.Contains(v));
 
                         if (valid.Any()) moves = true;
 
@@ -81,6 +87,8 @@ namespace Day12
                         }
 
                         iter.AddRange(paths);
+                        HasBeen.AddRange(iter.Select(i => i.Last()));
+                        HasBeen = HasBeen.Distinct().ToList();
                     }
 
                     iter = iter.Distinct(new PathCompare()).ToList();
@@ -103,6 +111,7 @@ namespace Day12
             });
         
             var answer2 = answers.OrderBy(a => a).First();
+            Console.WriteLine($"Actual answer is: {answer2}");
         }
 
         public static List<Position> ValidMovesFrom(this int[][] map, Position p)
