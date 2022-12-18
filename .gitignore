@@ -3,3 +3,4 @@ bin/
 obj/
 target/
 *.lock
+.vscode
